@@ -1,0 +1,13 @@
+import {Router} from 'express';
+import {dashboard,users,toggleUser,organizerOptions,events,trash,getEvent,createEvent,updateEvent,deleteEvent,restoreEvent,permanentDeleteEvent,eventDecision,registrations,registrationDecision,participants,markAttendance,categoriesAdmin,addCategory,deleteCategory,report,createAdmin,updateAdmin,deleteAdmin,eventAnalysis,exportEvent} from '../controllers/adminController.js';
+import {authenticate,authorize} from '../middleware/auth.js';
+import {eventUpload} from '../middleware/upload.js';
+const r=Router(); const a=[authenticate,authorize('admin')];
+r.get('/dashboard',...a,dashboard); r.get('/users',...a,users); r.put('/users/:id/toggle',...a,toggleUser);
+r.post('/admins',...a,createAdmin); r.put('/admins/:id',...a,updateAdmin); r.delete('/admins/:id',...a,deleteAdmin);
+r.get('/organizers',...a,organizerOptions);
+r.get('/events',...a,events); r.get('/bin',...a,trash); r.get('/events/:id',...a,getEvent); r.post('/events',...a,eventUpload.fields([{name:'poster',maxCount:1}]),createEvent); r.put('/events/:id',...a,eventUpload.fields([{name:'poster',maxCount:1}]),updateEvent); r.delete('/events/:id',...a,deleteEvent); r.put('/events/:id/restore',...a,restoreEvent); r.delete('/events/:id/permanent',...a,permanentDeleteEvent); r.put('/events/:id/status',...a,eventDecision);
+r.get('/events/:id/participants',...a,participants); r.get('/events/:id/analysis',...a,eventAnalysis); r.get('/events/:id/export',...a,exportEvent);
+r.get('/registrations',...a,registrations); r.put('/registrations/:id/status',...a,registrationDecision); r.put('/attendance/:id',...a,markAttendance);
+r.get('/categories',...a,categoriesAdmin); r.post('/categories',...a,addCategory); r.delete('/categories/:id',...a,deleteCategory); r.get('/reports',...a,report);
+export default r;

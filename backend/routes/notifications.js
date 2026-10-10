@@ -1,0 +1,2 @@
+import {Router} from 'express'; import {query} from '../config/db.js'; import {authenticate} from '../middleware/auth.js';
+const r=Router();r.get('/',authenticate,async(req,res,next)=>{try{res.json(await query('SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 30',[req.user.id]))}catch(e){next(e)}});r.put('/:id/read',authenticate,async(req,res,next)=>{try{await query('UPDATE notifications SET is_read=TRUE WHERE id=? AND user_id=?',[req.params.id,req.user.id]);res.json({message:'Notification marked read'})}catch(e){next(e)}});export default r;

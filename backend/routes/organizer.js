@@ -1,0 +1,2 @@
+import {Router} from 'express'; import {dashboard,participants,registrationDecision,markAttendance} from '../controllers/organizerController.js'; import {authenticate,authorize} from '../middleware/auth.js';
+const r=Router();r.get('/dashboard',authenticate,authorize('organizer'),dashboard);r.get('/events/:id/participants',authenticate,authorize('organizer'),participants);r.put('/registrations/:id/status',authenticate,authorize('organizer'),registrationDecision);r.put('/attendance/:id',authenticate,authorize('organizer'),markAttendance);export default r;

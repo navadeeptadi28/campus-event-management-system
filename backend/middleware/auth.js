@@ -1,0 +1,3 @@
+import jwt from 'jsonwebtoken';
+export function authenticate(req,res,next){const h=req.headers.authorization||'';const token=h.startsWith('Bearer ')?h.slice(7):null;if(!token)return res.status(401).json({message:'Authentication required'});try{const secret=String(process.env.JWT_SECRET||'').trim();if(!secret)return res.status(500).json({message:'Server authentication is not configured. Set JWT_SECRET in backend/.env and restart the backend.'});req.user=jwt.verify(token,secret);next();}catch(e){return res.status(401).json({message:'Invalid or expired token'});}}
+export const authorize=(...roles)=>(req,res,next)=>{if(!roles.includes(req.user?.role))return res.status(403).json({message:'Access denied'});next();};
