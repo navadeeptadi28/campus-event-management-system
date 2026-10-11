@@ -244,4 +244,4 @@ Choose and add an appropriate open-source license before distributing the projec
 ---
 
 **CampusEvents — One place for every campus event.**
->>>>>>> b5aa0bd4ab00ff7faa3998f63a3e22150a84579a
+>>>>>>>
