@@ -31,9 +31,24 @@ const TEAM_DEFAULT_EXPORT_COLUMNS = ['team_id', 'team_name', ...DEFAULT_EXPORT_C
 
 const MAIN_ADMIN_EMAIL = 'admin@college.edu';
 
+/* Same rule as the registration form, preview and receipt:
+   a student field exists for an event only if it is in standardFields.
+   Full Name and Student ID are always on. */
+const ALL_FIELDS = ['fullName', 'studentId', 'email', 'mobile', 'department', 'course', 'year', 'section'];
+const EXPORT_KEY_TO_FIELD = {
+  student_name: 'fullName', student_id: 'studentId', email: 'email', mobile: 'mobile',
+  department: 'department', course: 'course', year: 'year', section: 'section',
+};
+
 const parseJSON = (value, fallback) => {
   try { return value ? JSON.parse(value) : fallback; } catch { return fallback; }
 };
+const enabledFieldsOf = (config) => {
+  const list = Array.isArray(config?.standardFields) ? config.standardFields : ALL_FIELDS;
+  return ALL_FIELDS.filter((k) => k === 'fullName' || k === 'studentId' || list.includes(k));
+};
+const isExportKeyEnabled = (key, enabled) => !EXPORT_KEY_TO_FIELD[key] || enabled.includes(EXPORT_KEY_TO_FIELD[key]);
+
 const normalize = (v) => String(v || '').trim().toLowerCase();
 const fmtDate = (d) => new Date(d).toLocaleDateString('en-IN');
 const capitalize = (s) => s[0].toUpperCase() + s.slice(1);
@@ -182,9 +197,11 @@ export default function AdminDashboard() {
     const id = e.target.value;
     setSelectedEventId(id);
     loadAnalysis(id);
-    // Reset export columns to sensible defaults for the chosen event type.
+    // Reset export columns to sensible defaults, keeping only fields this event collects.
     const ev = events.find((x) => String(x.id) === String(id));
-    setExportColumns(ev?.participation_type === 'team' ? TEAM_DEFAULT_EXPORT_COLUMNS : DEFAULT_EXPORT_COLUMNS);
+    const enabled = enabledFieldsOf(parseJSON(ev?.registration_config_json, {}));
+    const base = ev?.participation_type === 'team' ? TEAM_DEFAULT_EXPORT_COLUMNS : DEFAULT_EXPORT_COLUMNS;
+    setExportColumns(base.filter((k) => isExportKeyEnabled(k, enabled)));
   };
 
   /* ---------- admin accounts ---------- */
@@ -260,16 +277,19 @@ export default function AdminDashboard() {
   const adminUsers = users.filter((u) => u.role === 'admin');
 
   const selectedEvent = events.find((e) => String(e.id) === String(selectedEventId));
-  const selectedQuestions = parseJSON(selectedEvent?.registration_config_json, {}).questions || [];
+  const selectedConfig = parseJSON(selectedEvent?.registration_config_json, {});
+  const selectedQuestions = selectedConfig.questions || [];
   const selectedIsTeam = selectedEvent?.participation_type === 'team';
+  const selectedEnabled = enabledFieldsOf(selectedConfig);
 
   // Team ID only makes sense for team events. Team members are always expanded into rows
   // for team events, so the packed "Team Members" column is hidden there.
+  // Student columns the event does not collect (disabled in the form) are hidden too.
   const exportColumnOptions = [
     ...STANDARD_EXPORT_COLUMNS.filter(([key]) => {
       if (key === 'team_id') return selectedIsTeam;
       if (key === 'team_members') return !selectedIsTeam;
-      return true;
+      return isExportKeyEnabled(key, selectedEnabled);
     }),
     ...selectedQuestions.map((q) => [`q:${q.id}`, q.label]),
   ];
@@ -291,6 +311,12 @@ export default function AdminDashboard() {
     const ev = events.find((x) => String(x.id) === String(reg.event_id));
     const questions = parseJSON(ev?.registration_config_json, {}).questions || [];
     return questions.find((q) => q.id === key)?.label || key;
+  };
+
+  // Which student fields the event of a registration actually collects.
+  const enabledForEvent = (eventId) => {
+    const ev = events.find((x) => String(x.id) === String(eventId));
+    return enabledFieldsOf(parseJSON(ev?.registration_config_json, {}));
   };
 
   /* ---------- render ---------- */
@@ -605,6 +631,9 @@ export default function AdminDashboard() {
                 {filteredRegs.map((r) => {
                   const members = parseJSON(r.team_members_json, []);
                   const answers = parseJSON(r.custom_answers_json, {});
+                  const on = enabledForEvent(r.event_id);
+                  const detailLine = ['mobile', 'department', 'course', 'year', 'section']
+                    .filter((k) => on.includes(k)).map((k) => r[k] || '—').join(' · ');
                   return (
                     <tr key={r.id}>
                       <td>
@@ -619,18 +648,23 @@ export default function AdminDashboard() {
                                 {members.length ? members.map((m, i) => (
                                   <div className="team-detail-item" key={`${r.id}-${i}`}>
                                     <b>{i + 2}. {m.fullName || '—'}</b>
-                                    <small>Roll No: {m.studentId || '—'} · {m.department || '—'} · {m.course || '—'} · {m.year || '—'}</small>
-                                    {m.email && <small>{m.email}</small>}
-                                    {m.mobile && <small>{m.mobile}</small>}
-                                    {m.section && <small>Section: {m.section}</small>}
+                                    <small>
+                                      {['studentId', 'department', 'course', 'year']
+                                        .filter((k) => on.includes(k))
+                                        .map((k) => (k === 'studentId' ? `Roll No: ${m[k] || '—'}` : (m[k] || '—')))
+                                        .join(' · ')}
+                                    </small>
+                                    {on.includes('email') && m.email && <small>{m.email}</small>}
+                                    {on.includes('mobile') && m.mobile && <small>{m.mobile}</small>}
+                                    {on.includes('section') && m.section && <small>Section: {m.section}</small>}
                                   </div>
                                 )) : <small>No member details saved.</small>}
                               </div>
                             </details>
                           </>
                         )}
-                        <small>{r.email}</small>
-                        <small>{r.mobile || '—'} · {r.department || '—'} · {r.course || '—'} · {r.year || '—'} · {r.section || '—'}</small>
+                        {on.includes('email') && <small>{r.email || '—'}</small>}
+                        {detailLine && <small>{detailLine}</small>}
                       </td>
                       <td>{r.event_name}</td>
                       <td>{r.student_id || '—'}</td>
@@ -769,12 +803,16 @@ export default function AdminDashboard() {
                       <label>College filter (optional)
                         <input value={collegeFilter} onChange={(e) => setCollegeFilter(e.target.value)} placeholder="Exact college name" />
                       </label>
-                      <label>Department filter (optional)
-                        <input value={exportDepartment} onChange={(e) => setExportDepartment(e.target.value)} placeholder="Department" />
-                      </label>
-                      <label>Year filter (optional)
-                        <input value={exportYear} onChange={(e) => setExportYear(e.target.value)} placeholder="Year of study" />
-                      </label>
+                      {selectedEnabled.includes('department') && (
+                        <label>Department filter (optional)
+                          <input value={exportDepartment} onChange={(e) => setExportDepartment(e.target.value)} placeholder="Department" />
+                        </label>
+                      )}
+                      {selectedEnabled.includes('year') && (
+                        <label>Year filter (optional)
+                          <input value={exportYear} onChange={(e) => setExportYear(e.target.value)} placeholder="Year of study" />
+                        </label>
+                      )}
                       <label>Campus type
                         <select value={exportCampusType} onChange={(e) => setExportCampusType(e.target.value)}>
                           <option value="">All campuses</option>
