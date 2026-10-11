@@ -8,7 +8,7 @@ if (!process.env.JWT_SECRET || !process.env.JWT_SECRET.trim()) {
   throw new Error('JWT_SECRET is missing. Add JWT_SECRET=your_long_random_secret to backend/.env and restart the backend.');
 }
 const app=express();
-app.use(cors({origin:process.env.CLIENT_URL||'http://localhost:5173'}));app.use(express.json({limit:'2mb'}));app.use(express.urlencoded({extended:true}));app.use('/uploads',express.static(path.resolve('uploads')));
+app.use(cors({ origin: process.env.CLIENT_URL }));
 app.get('/api/health',(req,res)=>res.json({status:'ok',service:'College Event Management API'}));
 app.use('/api/auth',authRoutes);app.use('/api/events',eventRoutes);app.use('/api/registrations',registrationRoutes);app.use('/api/organizer',organizerRoutes);app.use('/api/admin',adminRoutes);app.use('/api/notifications',notificationRoutes); app.use('/api/student',studentRoutes);
 app.use(notFound);app.use(errorHandler);
