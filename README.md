@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Campus Event Management System
 
 React + Vite frontend, Node.js + Express backend, and SQLite database. The existing Admin dashboard layout has been retained and the registration workflow extended.
